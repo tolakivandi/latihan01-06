@@ -3,7 +3,9 @@ const router = express.Router();
 const fs = require("fs");
 const multer = require("multer");
 const path = require("path");
+const cors = require('cors');
 
+app.use(cors())
 const connection = require("../config/db.js");
 const { body, validationResult } = require("express-validator");
 const fileFilter = (req, file, cb) => {
