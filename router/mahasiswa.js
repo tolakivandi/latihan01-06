@@ -125,7 +125,10 @@ router.get("/(:id)", function (req, res) {
 
 router.patch(
   "/update/:id",
-  upload.single("gambar"),
+  upload.fields([
+    { name: "gambar", maxCount: 1 },
+    { name: "swa_foto", maxCount: 1 },
+  ]),
   [
     body("nama").notEmpty(),
     body("nrp").notEmpty(),
@@ -139,7 +142,10 @@ router.patch(
       });
     }
     let id = req.params.id;
-    let gambar = req.file ? req.file.filename : null;
+    let gambar = req.files["gambar"] ? req.files["gambar"][0].filename : null;
+    let swa_foto = req.files["swa_foto"]
+      ? req.files["swa_foto"][0].filename
+      : null;
 
     connection.query(
       `select * from mahasiswa where id_m = ${id}`,
@@ -147,33 +153,45 @@ router.patch(
         if (err) {
           return res.status(500).json({
             status: false,
-            message: "Not Found",
+            message: "server error",
           });
         }
         if (rows.length === 0) {
           return res.status(404).json({
             status: false,
-            message: "Not Found",
+            message: "not found",
           });
         }
-        const nameFilelama = rows[0].gambar;
+        const gambarLama = rows[0].gambar;
+        const swa_fotoLama = rows[0].swa_foto;
 
-        if (nameFilelama && gambar) {
-          const pathFilelama = path.join(
+        if (gambarLama && gambar) {
+          const pathgambar = path.join(
             __dirname,
-            "../public/images",
-            nameFilelama
+            "../public/image",
+            gambarLama
           );
-          fs.unlinkSync(pathFilelama);
+          if (fs.existsSync(pathgambar)) {
+            fs.unlinkSync(pathgambar);
+          }
         }
-
+        if (swa_fotoLama && swa_foto) {
+          const pathSwafoto = path.join(
+            __dirname,
+            "../public/image",
+            swa_fotoLama
+          );
+          if (fs.existsSync(pathSwafoto)) {
+            fs.unlinkSync(pathSwafoto);
+          }
+        }
         let Data = {
           nama: req.body.nama,
           nrp: req.body.nrp,
           id_jurusan: req.body.id_jurusan,
           gambar: gambar,
+          swa_foto: swa_foto,
         };
-
         connection.query(
           `update mahasiswa set ? where id_m = ${id}`,
           Data,
@@ -181,12 +199,12 @@ router.patch(
             if (err) {
               return res.status(500).json({
                 status: false,
-                message: "server error",
+                message: "Server Error",
               });
             } else {
               return res.status(200).json({
                 status: true,
-                message: "update",
+                message: "Update berhasil..!",
               });
             }
           }
@@ -195,6 +213,7 @@ router.patch(
     );
   }
 );
+
 
 router.delete("/delete/(:id)", function (req, res) {
   let id = req.params.id;
