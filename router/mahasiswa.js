@@ -1,149 +1,30 @@
-// const express = require("express");
-// const router = express.Router();
-
-// const { body, validationResult } = require(`express-validator`);
-
-// const connection = require("../config/db");
-// // const { status } = require("express/lib/response");
-
-// router.get("/", function (req, res) {
-//   connection.query(
-//     "select * from mahasiswa order by id_m desc",
-//     function (err, rows) {
-//       if (err) {
-//         return res.status(500).json({
-//           status: false,
-//           message: "server failed",
-//         });
-//       } else {
-//         return res.status(200).json({
-//           status: true,
-//           message: "Data mahasiswa",
-//           data: rows,
-//         });
-//       }
-//     }
-//   );
-// });
-
-// router.post(
-//   "/store",
-//   [
-//     // connection.query(
-//     body("nama").notEmpty(),
-//     body("nrp").notEmpty(),
-//   ],
-//   (req, res) => {
-//     const error = validationResult(req);
-//     if (!error.isEmpty()) {
-//       return res.status(422).json({
-//         error: error.array(),
-//       });
-//     }
-//     let Data = {
-//       nama: req.body.nama,
-//       nrp: req.body.nrp,
-//     };
-//     connection.query(`insert into mahasiswa set ?`, Data, function (err, rows) {
-//       if (err) {
-//         return res.status(500).json({
-//           status: false,
-//           message: "server error",
-//         });
-//       } else {
-//         return res.status(500).json({
-//           status: true,
-//           message: "success..!",
-//           data: rows[0],
-//         });
-//       }
-//     });
-//   }
-// );
-
-
-// router.post('/store',)
-
-// router.get('/(:id)', function (req, res) {
-//   let id = req.params.id;
-//   connection.query(`select * from  mahasiswa where id_m = ${id}`, function (err, rows) {
-//     if (err) {
-//       return res.status(500).json({
-//         status: false,
-//         message: 'server error',
-//       })
-//   } 
-//     if (rows.length <= 0){
-//     return res.status(404).json({
-//       status: false,
-//       message: 'not Found',
-//       })
-//     }
-//     else {
-//       return res.status(200).json({
-//         status: true,
-//         message: 'Data mahasiswa',
-//         data: rows[0]
-//       })
-//     }
-//   })
-// })
-
-// router.patch('/update/:id', [
-//   body('nama').notEmpty(),
-//     body('nrp').notEmpty()
-// ], (req, res) => {
-//   const error = validationResult(req);
-//   if (!error.isEmpty()){
-//     return res.status(422).json({
-//       error: error.array()
-//     });
-//   }
-//   let id = req.params.id;
-//   let Data = {
-//     nama: req.body.nama,
-//     nrp: req.body.nrp
-//   }
-//   connection.query(`update mahasiswa set ? where id_m = ${id}`, Data, function (err, rows) {
-//     if (err) {
-//       return res.status(500).json({
-//         status: false,
-//         message: 'server error',
-//       })
-//     } else {
-//       return res.status(200).json({
-//         status: true,
-//         message: 'update Success..!'
-//       })
-//     }
-//   })
-// })n
-
-// router.delete("/delete/:id", function (req, res) {
-//   let id = req.params.id;
-//   connection.query(
-//     `delete from mahasiswa where id_m = ${id}`,
-//     function (err, rows) {
-//       if (err) {
-//         return res.status(500).json({
-//           status: false,
-//           message: "Server failed",
-//         });
-//       } else {
-//         return res.status(200).json({
-//           status: true,
-//           message: "Data Berhasil Dihapus",
-//         });
-//       }
-//     }
-//   );
-// });
-
 const express = require("express");
 const router = express.Router();
+const fs = require("fs");
+const multer = require("multer");
+const path = require("path");
 
 const connection = require("../config/db.js");
 const { body, validationResult } = require("express-validator");
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype === "image/jpeg" || file.mimetype === "image/png") {
+    cb(null, true);
+  } else {
+    cb(new Error("jenis file tidak diizinkan"), false);
+  }
+};
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "public/images");
+  },
+  filename: (req, file, cb) => {
+    console.log(file);
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage: storage, fileFilter: fileFilter });
 
 router.get("/", function (req, res) {
   connection.query(
@@ -170,6 +51,10 @@ router.get("/", function (req, res) {
 
 router.post(
   "/store",
+  upload.fields([
+    { name: "gambar", maxCount: 1 },
+    { name: "swa_foto", maxCount: 1 },
+  ]),
   [
     body("nama").notEmpty(),
     body("nrp").notEmpty(),
@@ -186,6 +71,8 @@ router.post(
       nama: req.body.nama,
       nrp: req.body.nrp,
       id_jurusan: req.body.id_jurusan,
+      gambar: req.files.gambar[0].filename,
+      swa_foto: req.files.swa_foto[0].filename,
     };
     connection.query(
       "insert into mahasiswa set ? ",
@@ -195,6 +82,7 @@ router.post(
           return res.status(500).json({
             status: false,
             message: "server failed",
+            error: err,
           });
         } else {
           return res.status(201).json({
@@ -237,6 +125,7 @@ router.get("/(:id)", function (req, res) {
 
 router.patch(
   "/update/:id",
+  upload.single("gambar"),
   [
     body("nama").notEmpty(),
     body("nrp").notEmpty(),
@@ -250,26 +139,58 @@ router.patch(
       });
     }
     let id = req.params.id;
-    let data = {
-      nama: req.body.nama,
-      nrp: req.body.nrp,
-      id_jurusan: req.body.id_jurusan,
-    };
+    let gambar = req.file ? req.file.filename : null;
+
     connection.query(
-      `update mahasiswa set ? where id_m = ${id}`,
-      data,
+      `select * from mahasiswa where id_m = ${id}`,
       function (err, rows) {
         if (err) {
           return res.status(500).json({
             status: false,
-            message: "server error",
-          });
-        } else {
-          return res.status(200).json({
-            status: true,
-            message: "update",
+            message: "Not Found",
           });
         }
+        if (rows.length === 0) {
+          return res.status(404).json({
+            status: false,
+            message: "Not Found",
+          });
+        }
+        const nameFilelama = rows[0].gambar;
+
+        if (nameFilelama && gambar) {
+          const pathFilelama = path.join(
+            __dirname,
+            "../public/images",
+            nameFilelama
+          );
+          fs.unlinkSync(pathFilelama);
+        }
+
+        let Data = {
+          nama: req.body.nama,
+          nrp: req.body.nrp,
+          id_jurusan: req.body.id_jurusan,
+          gambar: gambar,
+        };
+
+        connection.query(
+          `update mahasiswa set ? where id_m = ${id}`,
+          Data,
+          function (err, rows) {
+            if (err) {
+              return res.status(500).json({
+                status: false,
+                message: "server error",
+              });
+            } else {
+              return res.status(200).json({
+                status: true,
+                message: "update",
+              });
+            }
+          }
+        );
       }
     );
   }
@@ -277,20 +198,48 @@ router.patch(
 
 router.delete("/delete/(:id)", function (req, res) {
   let id = req.params.id;
+
   connection.query(
-    `delete from mahasiswa where id_m = ${id}`,
+    `select * from mahasiswa where id_m = ${id}`,
     function (err, rows) {
       if (err) {
         return res.status(500).json({
           status: false,
           message: "server error",
         });
-      } else {
-        return res.status(200).json({
-          status: true,
-          message: "Data di hapus",
+      }
+      if (rows.length === 0) {
+        return res.status(404).json({
+          status: false,
+          message: "not found",
         });
       }
+      const namaFileLama = rows[0].gambar;
+      if (namaFileLama) {
+        const patchFileLama = path.join(
+          __dirname,
+          "../public/images",
+          namaFileLama
+        );
+        fs.unlinkSync(patchFileLama);
+      }
+      connection.query(
+        `delete from mahasiswa where id_m = ${id}`,
+        function (err, rows) {
+          if (err) {
+            return res.status(500).json({
+              status: false,
+              message: "server error",
+              error: err,
+            });
+          } else {
+            return res.status(200).json({
+              status: true,
+              message: "data berhasil dihapus",
+            });
+          }
+        }
+      );
     }
   );
 });
